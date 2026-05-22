@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Arcade</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .arcade-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+        }
+
+        h1 {
+            color: #00ff88;
+            font-size: 3rem;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+            letter-spacing: 4px;
+        }
+
+        .games {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .game-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #333;
+            border-radius: 16px;
+            padding: 25px;
+            cursor: pointer;
+            transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+            text-align: center;
+            min-width: 180px;
+        }
+
+        .game-card:hover {
+            transform: scale(1.05);
+            border-color: #00ff88;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+        }
+
+        .game-icon {
+            font-size: 3.5rem;
+            margin-bottom: 16px;
+        }
+
+        .game-title {
+            color: #fff;
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .game-desc {
+            color: #888;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="arcade-container">
+        <h1>RETRO ARCADE</h1>
+        <div class="games">
+            <div class="game-card" onclick="location.href='snake.html'">
+                <div class="game-icon">🐍</div>
+                <div class="game-title">Snake Battle</div>
+                <div class="game-desc">Eat smaller snakes<br>Arrow keys</div>
+            </div>
+            <div class="game-card" onclick="location.href='space-invaders.html'">
+                <div class="game-icon">🚀</div>
+                <div class="game-title">Space Invaders</div>
+                <div class="game-desc">Shoot aliens & bosses<br>Mouse/Arrows + Space</div>
+            </div>
+            <div class="game-card" onclick="location.href='wordle.html'">
+                <div class="game-icon">🇯🇵</div>
+                <div class="game-title">Kanji Wordle</div>
+                <div class="game-desc">Guess kanji words<br>Keyboard input</div>
+            </div>
+            <div class="game-card" onclick="location.href='wordle-en.html'">
+                <div class="game-icon">🔤</div>
+                <div class="game-title">Wordle</div>
+                <div class="game-desc">Guess 5-letter words<br>Keyboard input</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanji Wordle - 漢字チャレンジ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #4ecca3;
+            font-size: 2rem;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(78, 204, 163, 0.3);
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .board {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .cell {
+            width: 58px;
+            height: 65px;
+            border: 2px solid #3a3a5a;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.1s;
+        }
+
+        .cell .yomi {
+            font-size: 9px;
+            color: #888;
+            height: 14px;
+            margin-bottom: 1px;
+        }
+
+        .cell .kanji {
+            font-size: 28px;
+            font-weight: bold;
+            color: #eee;
+        }
+
+        .cell.correct {
+            background: #4ecca3;
+            border-color: #4ecca3;
+        }
+
+        .cell.correct .yomi,
+        .cell.correct .kanji {
+            color: #1a1a2e;
+        }
+
+        .cell.present {
+            background: #d4a017;
+            border-color: #d4a017;
+        }
+
+        .cell.present .yomi,
+        .cell.present .kanji {
+            color: #1a1a2e;
+        }
+
+        .cell.absent {
+            background: #3a3a5a;
+            border-color: #3a3a5a;
+        }
+
+        .cell.absent .yomi,
+        .cell.absent .kanji {
+            color: #666;
+        }
+
+        .cell.current {
+            border-color: #4ecca3;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { border-color: #4ecca3; }
+            50% { border-color: #3db892; }
+        }
+
+        .keyboard {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .keyboard-row {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+        }
+
+        .key {
+            min-width: 32px;
+            height: 45px;
+            border: none;
+            border-radius: 6px;
+            background: #3a3a5a;
+            color: #eee;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.1s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0 8px;
+        }
+
+        .key .yomi {
+            font-size: 7px;
+            color: #888;
+            font-weight: normal;
+        }
+
+        .key:hover {
+            background: #4a4a6a;
+            transform: scale(1.05);
+        }
+
+        .key:active {
+            transform: scale(0.95);
+        }
+
+        .key.wide {
+            min-width: 55px;
+            font-size: 11px;
+        }
+
+        .key.correct {
+            background: #4ecca3;
+            color: #1a1a2e;
+        }
+
+        .key.present {
+            background: #d4a017;
+            color: #1a1a2e;
+        }
+
+        .key.absent {
+            background: #2a2a3a;
+            color: #666;
+        }
+
+        .message {
+            color: #4ecca3;
+            font-size: 1.2rem;
+            text-align: center;
+            min-height: 30px;
+            margin: 10px 0;
+        }
+
+        .message.error {
+            color: #ff6b6b;
+        }
+
+        .back-link {
+            color: #4ecca3;
+            text-decoration: none;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .hint-btn {
+            background: rgba(78, 204, 163, 0.2);
+            border: 1px solid #4ecca3;
+            color: #4ecca3;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .hint-btn:hover {
+            background: rgba(78, 204, 163, 0.3);
+        }
+
+        .hint-text {
+            color: #ffd93d;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Back to Arcade</a>
+    <h1>漢字チャレンジ</h1>
+    <p class="subtitle">Kanji Wordle - Guess the 4-letter word</p>
+
+    <div class="game-container">
+        <div class="board" id="board"></div>
+        <div class="message" id="message"></div>
+        <div class="hint-text" id="hintText"></div>
+        <button class="hint-btn" id="hintBtn">💡 Hint (1/word)</button>
+        <div class="keyboard" id="keyboard"></div>
+    </div>
+
+    <script>
+        const WORDS = [
+            { kanji: '日本', yomi: 'にほん', meaning: 'Japan' },
+            { kanji: '大米', yomi: 'こめ', meaning: 'rice' },
+            { kanji: '水泳', yomi: 'すいえい', meaning: 'swimming' },
+            { kanji: '映画', yomi: 'えいが', meaning: 'movie' },
+            { kanji: '音楽', yomi: 'おんがく', meaning: 'music' },
+            { kanji: '公園', yomi: 'こうえん', meaning: 'park' },
+            { kanji: '学校', yomi: 'がっこう', meaning: 'school' },
+            { kanji: '病院', yomi: 'びょういん', meaning: 'hospital' },
+            { kanji: '図書館', yomi: 'としょかん', meaning: 'library' },
+            { kanji: '映画館', yomi: 'えいがかん', meaning: 'theater' },
+            { kanji: '富士山', yomi: 'ふじさん', meaning: 'Mt. Fuji' },
+            { kanji: '桜花', yomi: 'おうか', meaning: 'cherry blossom' },
+            { kanji: '海辺', yomi: 'うみべ', meaning: 'seaside' },
+            { kanji: '山道', yomi: 'やまみち', meaning: 'mountain path' },
+            { kanji: '川魚', yomi: 'かわうお', meaning: 'river fish' },
+            { kanji: '空色', yomi: 'そらいろ', meaning: 'sky blue' },
+            { kanji: '火曜日', yomi: 'かようび', meaning: 'Tuesday' },
+            { kanji: '水曜日', yomi: 'すいようび', meaning: 'Wednesday' },
+            { kanji: '木曜日', yomi: 'もくようび', meaning: 'Thursday' },
+            { kanji: '金曜日', yomi: 'きんようび', meaning: 'Friday' },
+            { kanji: '土曜日', yomi: 'どようび', meaning: 'Saturday' },
+            { kanji: '日曜日', yomi: 'にちようび', meaning: 'Sunday' },
+            { kanji: '月曜日', yomi: 'げつようび', meaning: 'Monday' },
+            { kanji: '朝ご飯', yomi: 'あさごはん', meaning: 'breakfast' },
+            { kanji: '昼ご飯', yomi: 'ひるごはん', meaning: 'lunch' },
+            { kanji: '夕飯', yomi: 'ゆうはん', meaning: 'dinner' },
+            { kanji: '散歩', yomi: 'さんぽ', meaning: 'walk' },
+            { kanji: '読書', yomi: 'どくしょ', meaning: 'reading' },
+            { kanji: '旅行', yomi: 'りょこう', meaning: 'travel' },
+            { kanji: '洗濯', yomi: 'せんたく', meaning: 'laundry' },
+            { kanji: '料理', yomi: 'りょうり', meaning: 'cooking' },
+            { kanji: '花見', yomi: 'はなみ', meaning: 'flower viewing' },
+            { kanji: '温泉', yomi: 'おんせん', meaning: 'hot spring' },
+            { kanji: '絵葉書', yomi: 'はがき', meaning: 'postcard' },
+            { kanji: '切手', yomi: 'きって', meaning: 'stamp' },
+            { kanji: '冷蔵庫', yomi: 'れいぞうこ', meaning: 'refrigerator' },
+            { kanji: '洗濯機', yomi: 'せんたくき', meaning: 'washing machine' },
+            { kanji: '掃除機', yomi: 'そうじき', meaning: 'vacuum cleaner' },
+            { kanji: '电视机', yomi: 'テレビ', meaning: 'TV' },
+            { kanji: '電話', yomi: 'でんわ', meaning: 'telephone' },
+            { kanji: '時計', yomi: 'とけい', meaning: 'clock' },
+            { kanji: '眼鏡', yomi: 'めがね', meaning: 'glasses' },
+            { kanji: '傘', yomi: 'かさ', meaning: 'umbrella' },
+            { kanji: '鞄', yomi: 'かばん', meaning: 'bag' },
+            { kanji: '布団', yomi: 'ふとん', meaning: 'futon' },
+            { kanji: '枕', yomi: 'まくら', meaning: 'pillow' },
+            { kanji: '窓', yomi: 'まど', meaning: 'window' },
+            { kanji: '扉', yomi: 'とびら', meaning: 'door' },
+            { kanji: '階段', yomi: 'かいだん', meaning: 'stairs' },
+            { kanji: 'エレベーター', yomi: 'elevator', meaning: 'elevator' },
+            { kanji: '階段', yomi: 'かいだん', meaning: 'stairs' }
+        ];
+
+        const board = document.getElementById('board');
+        const message = document.getElementById('message');
+        const keyboard = document.getById('keyboard');
+        const hintBtn = document.getElementById('hintBtn');
+        const hintText = document.getElementById('hintText');
+
+        let targetWord = {};
+        let currentRow = 0;
+        let currentCol = 0;
+        let gameOver = false;
+        let hintsUsed = 0;
+        let keyStates = {};
+
+        const KEYBOARD_ROWS = [
+            [
+                { k: 'あ', y: 'a' }, { k: 'か', y: 'ka' }, { k: 'さ', y: 'sa' }, { k: 'た', y: 'ta' }, { k: 'な', y: 'na' },
+                { k: 'は', y: 'ha' }, { k: 'ま', y: 'ma' }, { k: 'や', y: 'ya' }, { k: 'ら', y: 'ra' }, { k: 'わ', y: 'wa' }
+            ],
+            [
+                { k: 'い', y: 'i' }, { k: 'き', y: 'ki' }, { k: 'し', y: 'si' }, { k: 'ち', y: 'ti' }, { k: 'に', y: 'ni' },
+                { k: 'ひ', y: 'hi' }, { k: 'み', y: 'mi' }, { k: 'り', y: 'ri' }, { k: 'を', y: 'wo' }
+            ],
+            [
+                { k: 'う', y: 'u' }, { k: 'く', y: 'ku' }, { k: 'す', y: 'su' }, { k: 'つ', y: 'tu' }, { k: 'ぬ', y: 'nu' },
+                { k: 'ふ', y: 'hu' }, { k: 'む', y: 'mu' }, { k: 'ゆ', y: 'yu' }, { k: 'る', y: 'ru' }, { k: 'ん', y: 'n' }
+            ],
+            [
+                { k: 'え', y: 'e' }, { k: 'け', y: 'ke' }, { k: 'せ', y: 'se' }, { k: 'て', y: 'te' }, { k: 'ね', y: 'ne' },
+                { k: 'へ', y: 'he' }, { k: 'め', y: 'me' }, { k: 'れ', y: 're' }
+            ],
+            [
+                { k: 'お', y: 'o' }, { k: 'こ', y: 'ko' }, { k: 'そ', y: 'so' }, { k: 'と', y: 'to' }, { k: 'の', y: 'no' },
+                { k: 'ほ', y: 'ho' }, { k: 'も', y: 'mo' }, { k: 'よ', y: 'yo' }, { k: 'ろ', y: 'ro' }
+            ],
+            [
+                { k: 'Back', wide: true }, { k: 'Enter', wide: true }
+            ]
+        ];
+
+        function init() {
+            targetWord = WORDS[Math.floor(Math.random() * WORDS.length)];
+            console.log('Target:', targetWord);
+            createBoard();
+            createKeyboard();
+            updateMessage('');
+        }
+
+        function createBoard() {
+            board.innerHTML = '';
+            for (let i = 0; i < 6; i++) {
+                const row = document.createElement('div');
+                row.className = 'row';
+                for (let j = 0; j < targetWord.kanji.length; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${i}-${j}`;
+                    row.appendChild(cell);
+                }
+                board.appendChild(row);
+            }
+            updateCurrentCell();
+        }
+
+        function createKeyboard() {
+            keyboard.innerHTML = '';
+            KEYBOARD_ROWS.forEach(rowKeys => {
+                const row = document.createElement('div');
+                row.className = 'keyboard-row';
+                rowKeys.forEach(key => {
+                    const btn = document.createElement('button');
+                    btn.className = 'key' + (key.wide ? ' wide' : '');
+                    btn.innerHTML = `${key.k}<span class="yomi">${key.y}</span>`;
+                    btn.dataset.key = key.k;
+                    btn.addEventListener('click', () => handleKey(key.k));
+                    row.appendChild(btn);
+                });
+                keyboard.appendChild(row);
+            });
+        }
+
+        function updateCurrentCell() {
+            document.querySelectorAll('.cell').forEach(c => c.classList.remove('current'));
+            if (!gameOver && currentRow < 6) {
+                const cell = document.getElementById(`cell-${currentRow}-${currentCol}`);
+                if (cell && !cell.classList.contains('correct') && !cell.classList.contains('present') && !cell.classList.contains('absent')) {
+                    cell.classList.add('current');
+                }
+            }
+        }
+
+        function handleKey(key) {
+            if (gameOver) return;
+
+            if (key === 'Back') {
+                deleteChar();
+            } else if (key === 'Enter') {
+                submitGuess();
+            } else {
+                addChar(key);
+            }
+        }
+
+        function addChar(char) {
+            if (currentCol >= targetWord.kanji.length) return;
+
+            const cell = document.getElementById(`cell-${currentRow}-${currentCol}`);
+            cell.innerHTML = `<span class="yomi">-</span><span class="kanji">${char}</span>`;
+            cell.dataset.char = char;
+            currentCol++;
+            updateCurrentCell();
+        }
+
+        function deleteChar() {
+            if (currentCol > 0) {
+                currentCol--;
+                const cell = document.getElementById(`cell-${currentRow}-${currentCol}`);
+                cell.innerHTML = '';
+                delete cell.dataset.char;
+                updateCurrentCell();
+            }
+        }
+
+        function submitGuess() {
+            const guess = [];
+            for (let i = 0; i < targetWord.kanji.length; i++) {
+                const cell = document.getElementById(`cell-${currentRow}-${i}`);
+                if (!cell.dataset.char) {
+                    shakeRow();
+                    updateMessage('文字が足りません', true);
+                    return;
+                }
+                guess.push(cell.dataset.char);
+            }
+
+            const result = checkGuess(guess);
+            revealRow(result);
+        }
+
+        function checkGuess(guess) {
+            const target = targetWord.kanji.split('');
+            const result = [];
+            const targetCopy = [...target];
+
+            for (let i = 0; i < guess.length; i++) {
+                if (guess[i] === target[i]) {
+                    result[i] = 'correct';
+                    targetCopy[i] = null;
+                }
+            }
+
+            for (let i = 0; i < guess.length; i++) {
+                if (result[i]) continue;
+
+                const idx = targetCopy.indexOf(guess[i]);
+                if (idx !== -1) {
+                    result[i] = 'present';
+                    targetCopy[idx] = null;
+                } else {
+                    result[i] = 'absent';
+                }
+            }
+
+            return result;
+        }
+
+        function revealRow(result) {
+            for (let i = 0; i < targetWord.kanji.length; i++) {
+                const cell = document.getElementById(`cell-${currentRow}-${i}`);
+                cell.classList.remove('current');
+                cell.classList.add(result[i]);
+
+                const key = cell.dataset.char;
+                if (key) {
+                    const existingState = keyStates[key];
+                    if (result[i] === 'correct' ||
+                        (result[i] === 'present' && existingState !== 'correct') ||
+                        (result[i] === 'absent' && !existingState)) {
+                        keyStates[key] = result[i];
+                        updateKeyboard();
+                    }
+                }
+            }
+
+            const allCorrect = result.every(r => r === 'correct');
+
+            if (allCorrect) {
+                gameOver = true;
+                const messages = ['素晴らしい!', 'お見事!', 'やるね!', 'Perfect!'];
+                updateMessage(messages[Math.floor(Math.random() * messages.length)]);
+            } else {
+                currentRow++;
+                currentCol = 0;
+
+                if (currentRow >= 6) {
+                    gameOver = true;
+                    updateMessage(`残念! 正解: ${targetWord.kanji} (${targetWord.yomi})`, true);
+                } else {
+                    updateMessage('');
+                }
+            }
+
+            updateCurrentCell();
+        }
+
+        function updateKeyboard() {
+            document.querySelectorAll('.key').forEach(key => {
+                const k = key.dataset.key;
+                if (keyStates[k]) {
+                    key.classList.remove('correct', 'present', 'absent');
+                    key.classList.add(keyStates[k]);
+                }
+            });
+        }
+
+        function shakeRow() {
+            const row = board.children[currentRow];
+            row.classList.add('shake');
+            setTimeout(() => row.classList.remove('shake'), 500);
+        }
+
+        function updateMessage(msg, isError = false) {
+            message.textContent = msg;
+            message.className = 'message' + (isError ? ' error' : '');
+        }
+
+        hintBtn.addEventListener('click', () => {
+            if (gameOver || hintsUsed >= 1) return;
+            hintsUsed++;
+            hintText.textContent = `Hint: ${targetWord.meaning}`;
+            hintBtn.textContent = '💡 Hint (used)';
+            hintBtn.disabled = true;
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+            const keyMap = {
+                'Backspace': 'Back',
+                'Enter': 'Enter'
+            };
+
+            if (keyMap[e.key]) {
+                e.preventDefault();
+                handleKey(keyMap[e.key]);
+            } else if (/^[a-zA-Z]$/.test(e.key)) {
+                e.preventDefault();
+                const hiragana = katakanaToHiragana(e.key.toLowerCase());
+                handleKey(hiragana);
+            }
+        });
+
+        function katakanaToHiragana(char) {
+            const katakana = 'アァカガサザタダナハバパマヤャラワィイキギシジチヂニヒビピミヰリエルケゲセゼテデネヘベペメヱレオコゴソゾトドノホボポモヨョロヲン';
+            const hiragana = 'あぁかがさがただなはばぱまややらわぃいきぎしじちぢにひびぴみヰりえるけげせぜてでねへべぺめヱれおこごそぞとどのほぼぽもよょろをん';
+
+            const idx = katakana.indexOf(char);
+            return idx !== -1 ? hiragana[idx] : char;
+        }
+
+        init();
+    </script>
+</body>
+</html>
