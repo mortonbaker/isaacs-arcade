@@ -350,7 +350,7 @@
                         height: enemyHeight,
                         alive: true,
                         type: typeIndex,
-                        health: type.health + Math.floor(wave / 5),
+                        health: type.health,
                         speed: type.speed * speedMultiplier,
                         points: type.points * wave,
                         shootInterval: shootInterval,
@@ -372,7 +372,7 @@
                 moveTimer: 0,
                 targetX: canvas.width / 2
             };
-            bossHealth = BOSS_DATA.health + Math.floor(wave / 3) * 3;
+            bossHealth = BOSS_DATA.health;
             showBossOverlay();
         }
 
@@ -615,7 +615,7 @@
                 if (boss.y < 60) {
                     boss.y += 0.5;
                 } else {
-                    boss.phase = Math.floor((BOSS_DATA.health + Math.floor(wave / 3) * 3 - bossHealth) / 5);
+                    boss.phase = Math.floor((BOSS_DATA.health - bossHealth) / 2);
                 }
             }
 
