@@ -190,6 +190,10 @@
                 <span>Wave:</span>
                 <span id="wave">1</span>
             </div>
+            <div class="hud-item" style="color: #ff8800;">
+                <span>Plane:</span>
+                <span id="planeName">Starter Jet</span>
+            </div>
             <div class="hud-item" style="color: #00ff88;">
                 <span>Weapon:</span>
                 <span id="weaponName">Machine Gun</span>
@@ -219,7 +223,7 @@
         </div>
 
         <div class="controls">
-            <strong>Mouse</strong> to move | <strong>Click/Space</strong> to shoot | <strong>F</strong> to fire missile | <strong>1-5</strong> to switch weapons | <strong>S</strong> for shop
+            <strong>Mouse</strong> to move | <strong>Click/Space</strong> to shoot | <strong>F</strong> fire missile | <strong>1-5</strong> weapons | <strong>P</strong> planes | <strong>S</strong> shop
         </div>
     </div>
 
@@ -231,6 +235,7 @@
         const moneyElement = document.getElementById('money');
         const waveElement = document.getElementById('wave');
         const weaponNameElement = document.getElementById('weaponName');
+        const planeNameElement = document.getElementById('planeName');
         const missileAmmoElement = document.getElementById('missileAmmo');
         const shopOverlay = document.getElementById('shopOverlay');
         const shopItems = document.getElementById('shopItems');
@@ -244,6 +249,13 @@
             { id: 'rockets', name: 'Rocket Pod', damage: 50, fireRate: 500, price: 1500, owned: false },
             { id: 'missiles', name: 'Heat Seekers', damage: 100, fireRate: 800, price: 3000, owned: false },
             { id: 'laser', name: 'Laser Beam', damage: 200, fireRate: 1000, price: 5000, owned: false }
+        ];
+
+        const PLANES = [
+            { id: 'starter', name: 'Starter Jet', price: 0, owned: true, color: '#4a90a4', width: 40, height: 50 },
+            { id: 'fighter', name: 'F-16 Falcon', price: 2000, owned: false, color: '#5a9a5a', width: 45, height: 55 },
+            { id: 'stealth', name: 'Stealth Bomber', price: 5000, owned: false, color: '#3a3a5a', width: 50, height: 60 },
+            { id: 'ace', name: 'Ace Interceptor', price: 10000, owned: false, color: '#aa4444', width: 55, height: 65 }
         ];
 
         let missileAmmo = 0;
@@ -264,7 +276,18 @@
             { type: 'ship', health: 100, speed: 0.5, points: 250, money: 75, color: '#4444ff', width: 50, height: 30 }
         ];
 
-        let player = { x: 400, y: 550, width: 40, height: 50, health: 100, maxHealth: 100 };
+        const BOSSES = [
+            { name: 'Giant Bomber', health: 500, speed: 1, points: 1000, money: 500, color: '#880000', width: 100, height: 80 },
+            { name: 'War Cruiser', health: 800, speed: 0.7, points: 2000, money: 1000, color: '#004488', width: 120, height: 100 },
+            { name: 'Death Star', health: 1500, speed: 0.5, points: 5000, money: 3000, color: '#440044', width: 150, height: 120 }
+        ];
+
+        let selectedPlane = 0;
+        let boss = null;
+        let bossSpawnTimer = 0;
+        let isBossWave = false;
+
+        let player = { x: 400, y: 550, width: 40, height: 50, health: 100, maxHealth: 100, color: '#4a90a4' };
         let bullets = [];
         let enemies = [];
         let explosions = [];
@@ -381,7 +404,13 @@
         }
 
         function init() {
-            player = { x: 400, y: 550, width: 40, height: 50, health: 100, maxHealth: 100 };
+            const plane = PLANES[selectedPlane];
+            player = {
+                x: 400, y: 550,
+                width: plane.width, height: plane.height,
+                health: 100, maxHealth: 100,
+                color: plane.color
+            };
             bullets = [];
             enemies = [];
             explosions = [];
@@ -398,8 +427,11 @@
             missileAmmo = 10;
             enemySpawnTimer = 0;
             waveEnemiesKilled = 0;
+            boss = null;
+            isBossWave = false;
 
             WEAPONS.forEach(w => w.owned = w.price === 0);
+            PLANES.forEach(p => p.owned = p.price === 0);
             UPGRADES.forEach(u => u.level = 0);
 
             player.maxHealth = 100 + UPGRADES[0].level * 50;
@@ -409,6 +441,7 @@
             gameOverlay.style.display = 'none';
             shopOverlay.style.display = 'none';
             weaponNameElement.textContent = WEAPONS[selectedWeapon].name;
+            planeNameElement.textContent = PLANES[selectedPlane].name;
         }
 
         function updateHUD() {
@@ -495,6 +528,8 @@
         }
 
         function spawnEnemy() {
+            if (isBossWave && boss && boss.alive) return;
+
             const typeIndex = Math.min(Math.floor(wave / 3), ENEMIES.length - 1);
             const type = ENEMIES[typeIndex];
 
@@ -509,11 +544,27 @@
             enemies.push(enemy);
         }
 
+        function spawnBoss() {
+            const bossIndex = Math.min(Math.floor(wave / 4), BOSSES.length - 1);
+            const bossData = BOSSES[bossIndex];
+
+            boss = {
+                x: canvas.width / 2,
+                y: -150,
+                ...JSON.parse(JSON.stringify(bossData)),
+                alive: true,
+                shootTimer: 0,
+                targetX: canvas.width / 2
+            };
+
+            isBossWave = true;
+        }
+
         function drawPlayer() {
             ctx.save();
             ctx.translate(player.x, player.y);
 
-            ctx.fillStyle = '#4a90a4';
+            ctx.fillStyle = player.color;
             ctx.beginPath();
             ctx.moveTo(0, -player.height / 2);
             ctx.lineTo(player.width / 2, player.height / 2);
@@ -529,6 +580,16 @@
             ctx.fillStyle = '#ffd700';
             ctx.fillRect(-player.width / 2 + 5, player.height / 4, 8, 4);
             ctx.fillRect(player.width / 2 - 13, player.height / 4, 8, 4);
+
+            if (selectedPlane >= 2) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.beginPath();
+                ctx.moveTo(0, -player.height / 2 + 5);
+                ctx.lineTo(player.width / 3, player.height / 3);
+                ctx.lineTo(-player.width / 3, player.height / 3);
+                ctx.closePath();
+                ctx.fill();
+            }
 
             ctx.restore();
         }
@@ -636,9 +697,40 @@
 
             bullets.forEach(drawBullet);
             enemies.forEach(e => { if (e.alive) drawEnemy(e); });
+            if (boss && boss.alive) drawBoss();
             explosions.forEach(drawExplosion);
 
             drawPlayer();
+        }
+
+        function drawBoss() {
+            if (!boss || !boss.alive) return;
+
+            ctx.save();
+            ctx.translate(boss.x, boss.y);
+
+            ctx.fillStyle = boss.color;
+            ctx.beginPath();
+            ctx.moveTo(0, -boss.height / 2);
+            ctx.lineTo(boss.width / 2, 0);
+            ctx.lineTo(boss.width / 2, boss.height / 3);
+            ctx.lineTo(boss.width / 4, boss.height / 2);
+            ctx.lineTo(-boss.width / 4, boss.height / 2);
+            ctx.lineTo(-boss.width / 2, boss.height / 3);
+            ctx.lineTo(-boss.width / 2, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(-20, 0, 8, 0, Math.PI * 2);
+            ctx.arc(20, 0, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#440000';
+            ctx.fillRect(-boss.width / 2, boss.height / 2, boss.width, 10);
+
+            ctx.restore();
         }
 
         function update() {
@@ -700,6 +792,9 @@
                             if (waveEnemiesKilled >= wave * 5) {
                                 wave++;
                                 waveEnemiesKilled = 0;
+                                if (wave % 2 === 0) {
+                                    spawnBoss();
+                                }
                                 playSound('waveComplete');
                             }
                         }
@@ -710,8 +805,50 @@
             explosions.forEach(exp => exp.frame++);
             explosions = explosions.filter(e => e.frame < 30);
 
+            if (boss && boss.alive) {
+                if (boss.y < 80) {
+                    boss.y += boss.speed;
+                } else {
+                    boss.shootTimer -= 16;
+                    if (boss.shootTimer <= 0) {
+                        enemyBullets.push({ x: boss.x, y: boss.y + boss.height / 2, speed: 5 });
+                        enemyBullets.push({ x: boss.x - 30, y: boss.y + boss.height / 2, speed: 5 });
+                        enemyBullets.push({ x: boss.x + 30, y: boss.y + boss.height / 2, speed: 5 });
+                        boss.shootTimer = 1500;
+                    }
+
+                    boss.moveTimer = (boss.moveTimer || 0) + 1;
+                    if (boss.moveTimer > 60) {
+                        boss.targetX = Math.random() * (canvas.width - 100) + 50;
+                        boss.moveTimer = 0;
+                    }
+                    boss.x += (boss.targetX - boss.x) * 0.02;
+                }
+
+                bullets.forEach(bullet => {
+                    if (Math.abs(bullet.x - boss.x) < boss.width / 2 &&
+                        Math.abs(bullet.y - boss.y) < boss.height / 2) {
+                        boss.health -= bullet.damage;
+                        bullet.y = -100;
+
+                        if (boss.health <= 0) {
+                            boss.alive = false;
+                            score += boss.points;
+                            money += boss.money;
+                            totalMoney += boss.money;
+                            isBossWave = false;
+                            explosions.push({ x: boss.x, y: boss.y, frame: 0 });
+                            playSound('enemyDestroyed');
+                            for (let i = 0; i < 5; i++) {
+                                explosions.push({ x: boss.x + (Math.random() - 0.5) * 80, y: boss.y + (Math.random() - 0.5) * 60, frame: i * 3 });
+                            }
+                        }
+                    }
+                });
+            }
+
             enemySpawnTimer -= 16;
-            if (enemySpawnTimer <= 0) {
+            if (enemySpawnTimer <= 0 && !isBossWave) {
                 spawnEnemy();
                 enemySpawnTimer = Math.max(500, 2000 - wave * 100);
             }
@@ -742,6 +879,28 @@
         function renderShop() {
             shopItems.innerHTML = '';
 
+            const planesHeader = document.createElement('div');
+            planesHeader.innerHTML = '<h3 style="color: #ffd700; margin: 10px 0 5px;">PLANES</h3>';
+            shopItems.appendChild(planesHeader);
+
+            PLANES.forEach((plane, index) => {
+                const item = document.createElement('div');
+                item.className = 'shop-item' + (plane.owned ? ' owned' : '');
+                item.innerHTML = `
+                    <div>
+                        <strong>${plane.name}</strong>
+                        <div style="color: #888; font-size: 0.85rem;">Color: ${plane.color}</div>
+                    </div>
+                    ${plane.owned ? '<span style="color: #4ecca3;">' + (index === selectedPlane ? 'EQUIPPED' : 'OWNED') + '</span>' :
+                        `<button class="buy-btn" data-plane="${plane.id}" data-price="${plane.price}">$${plane.price}</button>`}
+                `;
+                shopItems.appendChild(item);
+            });
+
+            const weaponsHeader = document.createElement('div');
+            weaponsHeader.innerHTML = '<h3 style="color: #ffd700; margin: 10px 0 5px;">WEAPONS</h3>';
+            shopItems.appendChild(weaponsHeader);
+
             WEAPONS.forEach(weapon => {
                 if (weapon.price === 0) return;
 
@@ -757,6 +916,10 @@
                 `;
                 shopItems.appendChild(item);
             });
+
+            const upgradesHeader = document.createElement('div');
+            upgradesHeader.innerHTML = '<h3 style="color: #ffd700; margin: 10px 0 5px;">UPGRADES</h3>';
+            shopItems.appendChild(upgradesHeader);
 
             UPGRADES.forEach(upgrade => {
                 const item = document.createElement('div');
@@ -780,7 +943,17 @@
                         money -= price;
                         playSound('purchase');
 
-                        if (btn.dataset.id) {
+                        if (btn.dataset.plane) {
+                            const plane = PLANES.find(p => p.id === btn.dataset.plane);
+                            if (plane) {
+                                plane.owned = true;
+                                selectedPlane = PLANES.findIndex(p => p.id === btn.dataset.plane);
+                                player.color = plane.color;
+                                player.width = plane.width;
+                                player.height = plane.height;
+                                planeNameElement.textContent = plane.name;
+                            }
+                        } else if (btn.dataset.id) {
                             const weapon = WEAPONS.find(w => w.id === btn.dataset.id);
                             if (weapon) {
                                 weapon.owned = true;
