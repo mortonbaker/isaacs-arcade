@@ -254,7 +254,7 @@
             { id: 'armor', name: 'Armor Plating', desc: '+50 max health', price: 800, maxLevel: 3, level: 0 },
             { id: 'speed', name: 'Afterburner', desc: '+20% speed', price: 600, maxLevel: 3, level: 0 },
             { id: 'rapid', name: 'Rapid Fire', desc: '-20% fire rate', price: 1000, maxLevel: 3, level: 0 },
-            { id: 'missiles', name: 'Missile Restock', desc: '+5 homing missiles', price: 200, maxLevel: 10, level: 0 }
+            { id: 'missiles', name: 'Missile Restock', desc: '+10 homing missiles', price: 200, maxLevel: 10, level: 0 }
         ];
 
         const ENEMIES = [
@@ -395,7 +395,7 @@
             selectedWeapon = 0;
             lastShot = 0;
             lastMissileShot = 0;
-            missileAmmo = 5;
+            missileAmmo = 10;
             enemySpawnTimer = 0;
             waveEnemiesKilled = 0;
 
@@ -792,7 +792,7 @@
                             if (upgrade && upgrade.level < upgrade.maxLevel) {
                                 upgrade.level++;
                                 if (upgrade.id === 'missiles') {
-                                    missileAmmo += 5;
+                                    missileAmmo += 10;
                                 } else if (upgrade.id === 'armor') {
                                     player.maxHealth = 100 + UPGRADES[0].level * 50;
                                     player.health = Math.min(player.health, player.maxHealth);
