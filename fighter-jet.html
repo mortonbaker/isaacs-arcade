@@ -268,6 +268,103 @@
         let enemySpawnTimer = 0;
         let waveEnemiesKilled = 0;
 
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            switch(type) {
+                case 'shoot':
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(800, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+                    gainNode.gain.setValueAtTime(0.1, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.1);
+                    break;
+                case 'cannon':
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(150, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+                    gainNode.gain.setValueAtTime(0.2, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.2);
+                    break;
+                case 'rocket':
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(200, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+                    gainNode.gain.setValueAtTime(0.15, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.15);
+                    break;
+                case 'laser':
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(1000, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(500, now + 0.15);
+                    gainNode.gain.setValueAtTime(0.15, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.15);
+                    break;
+                case 'explosion':
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(100, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(20, now + 0.4);
+                    gainNode.gain.setValueAtTime(0.3, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.4);
+                    break;
+                case 'enemyDestroyed':
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(400, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+                    gainNode.gain.setValueAtTime(0.1, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.2);
+                    break;
+                case 'waveComplete':
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(523, now);
+                    oscillator.frequency.setValueAtTime(659, now + 0.1);
+                    oscillator.frequency.setValueAtTime(784, now + 0.2);
+                    oscillator.frequency.setValueAtTime(1047, now + 0.3);
+                    gainNode.gain.setValueAtTime(0.15, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.5);
+                    break;
+                case 'powerup':
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(800, now);
+                    oscillator.frequency.setValueAtTime(1200, now + 0.1);
+                    gainNode.gain.setValueAtTime(0.1, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.2);
+                    break;
+                case 'purchase':
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(600, now);
+                    oscillator.frequency.setValueAtTime(900, now + 0.05);
+                    gainNode.gain.setValueAtTime(0.1, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.15);
+                    break;
+            }
+        }
+
         function init() {
             player = { x: 400, y: 550, width: 40, height: 50, health: 100, maxHealth: 100 };
             bullets = [];
@@ -311,22 +408,29 @@
             if (now - lastShot < weapon.fireRate * fireRateMultiplier) return;
             lastShot = now;
 
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
             switch (weapon.id) {
                 case 'machinegun':
+                    playSound('shoot');
                     bullets.push({ x: player.x, y: player.y - player.height / 2, damage: weapon.damage, speed: 15, type: 'normal' });
                     break;
                 case 'cannon':
+                    playSound('cannon');
                     bullets.push({ x: player.x, y: player.y - player.height / 2, damage: weapon.damage, speed: 12, type: 'cannon', size: 6 });
                     break;
                 case 'rockets':
+                    playSound('rocket');
                     bullets.push({ x: player.x - 15, y: player.y, damage: weapon.damage, speed: 8, type: 'rocket' });
                     bullets.push({ x: player.x + 15, y: player.y, damage: weapon.damage, speed: 8, type: 'rocket' });
                     break;
                 case 'missiles':
+                    playSound('rocket');
                     const target = findClosestEnemy();
                     bullets.push({ x: player.x, y: player.y - player.height / 2, damage: weapon.damage, speed: 10, type: 'missile', target: target });
                     break;
                 case 'laser':
+                    playSound('laser');
                     bullets.push({ x: player.x, y: player.y - player.height / 2, damage: weapon.damage, speed: 25, type: 'laser' });
                     break;
             }
@@ -547,10 +651,12 @@
                             totalMoney += enemy.money;
                             waveEnemiesKilled++;
                             explosions.push({ x: enemy.x, y: enemy.y, frame: 0 });
+                            playSound('enemyDestroyed');
 
                             if (waveEnemiesKilled >= wave * 5) {
                                 wave++;
                                 waveEnemiesKilled = 0;
+                                playSound('waveComplete');
                             }
                         }
                     }
@@ -628,6 +734,7 @@
 
                     if (money >= price) {
                         money -= price;
+                        playSound('purchase');
 
                         if (btn.dataset.id) {
                             const weapon = WEAPONS.find(w => w.id === btn.dataset.id);
