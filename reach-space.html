@@ -206,6 +206,12 @@
                 <span>$</span><span id="money">500</span>
             </div>
             <button id="shopBtn" style="padding: 5px 10px; background: #ffd700; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">SHOP [S]</button>
+            <div class="hud-item" style="align-items: center; gap: 5px;">
+                <span style="font-size: 0.8rem;">⛽ Fuel</span>
+                <div id="fuelBarBg" style="width: 100px; height: 12px; background: #333; border-radius: 6px; overflow: hidden;">
+                    <div id="fuelBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ff6600, #ffaa00); border-radius: 6px;"></div>
+                </div>
+            </div>
         </div>
 
         <canvas id="gameCanvas" width="800" height="600"></canvas>
@@ -254,12 +260,12 @@
         let isPaused = false;
 
         let inventory = {
-            rocket: 3,
-            jetpack: 1,
-            boost: 2,
-            shield: 0,
-            fuel: 2,
-            parachute: 0
+            rocket: 80,
+            jetpack: 80,
+            boost: 80,
+            shield: 80,
+            fuel: 80,
+            parachute: 80
         };
 
         let activeEffects = {
@@ -271,6 +277,9 @@
         let clouds = [];
         let stars = [];
         let particles = [];
+        let flashMessages = [];
+        let earnedThisRound = 0;
+        let peakAltitude = 0;
 
         const SHOP_ITEMS = [
             { id: 'rocket', name: '🚀 Rocket', desc: 'Gives extra boost in flight', price: 100, count: 1 },
@@ -291,7 +300,8 @@
         };
 
         let fuelCapacity = 100;
-        let jetpackPower = 0.3;
+        let fuelGauge = 0;
+        let jetpackPower = 0.7;
         let launchMultiplier = 1;
 
         function init() {
@@ -308,6 +318,11 @@
                 jetpack: false,
                 parachute: false
             };
+
+            fuelGauge = 0;
+            earnedThisRound = 0;
+            peakAltitude = 0;
+            flashMessages = [];
 
             bestAltitudeElement.textContent = bestAltitude;
             moneyElement.textContent = money;
@@ -505,6 +520,43 @@
             ctx.fillText(`Power: ${Math.floor(launchPower)}%`, 400, canvas.height - 58);
         }
 
+        function drawFlashMessages() {
+            flashMessages.forEach(f => {
+                ctx.save();
+                ctx.globalAlpha = Math.min(1, f.life);
+                ctx.fillStyle = '#ff0';
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 3;
+                ctx.strokeText(f.text, f.x, f.y);
+                ctx.fillText(f.text, f.x, f.y);
+                ctx.restore();
+            });
+        }
+
+        function drawStatusEffects() {
+            let x = canvas.width - 15;
+            let y = 25;
+            const effects = [];
+            if (activeEffects.shield) effects.push({ text: '🛡️ SHIELD', color: '#00ff88' });
+            if (activeEffects.jetpack) effects.push({ text: '🎒 JETPACK', color: '#ff6600' });
+            if (activeEffects.parachute) effects.push({ text: '🪂 CHUTE', color: '#4488ff' });
+
+            effects.forEach(e => {
+                ctx.save();
+                ctx.textAlign = 'right';
+                ctx.font = 'bold 14px Arial';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 3;
+                ctx.strokeText(e.text, x, y);
+                ctx.fillStyle = e.color;
+                ctx.fillText(e.text, x, y);
+                y += 22;
+                ctx.restore();
+            });
+        }
+
         function draw() {
             drawBackground();
             drawStars();
@@ -512,6 +564,8 @@
             drawParticles();
             drawPlayer();
             drawLaunchBar();
+            drawFlashMessages();
+            drawStatusEffects();
 
             if (!launched && !charging) {
                 ctx.fillStyle = '#fff';
@@ -519,7 +573,7 @@
                 ctx.textAlign = 'center';
                 ctx.fillText('Hold SPACE to charge launch!', canvas.width / 2, canvas.height - 100);
                 ctx.font = '12px Arial';
-                ctx.fillText('Use items [Q W E R T Y] before launching!', canvas.width / 2, canvas.height - 75);
+                ctx.fillText('Use items [Q W E T Y U] before launching!', canvas.width / 2, canvas.height - 75);
             }
 
             if (isGameOver) {
@@ -534,7 +588,7 @@
                 ctx.fillStyle = '#fff';
                 ctx.font = '24px Arial';
                 ctx.fillText(`Altitude: ${altitude}m`, canvas.width / 2, canvas.height / 2);
-                ctx.fillText(`Money Earned: $${money - totalMoney}`, canvas.width / 2, canvas.height / 2 + 30);
+                ctx.fillText(`Money Earned: $${earnedThisRound}`, canvas.width / 2, canvas.height / 2 + 30);
 
                 ctx.fillStyle = '#00ff88';
                 ctx.font = '18px Arial';
@@ -558,11 +612,11 @@
                 gravity *= 0.3;
             }
 
-            if (activeEffects.jetpack && inventory.fuel > 0) {
+            if (activeEffects.jetpack && fuelGauge > 0) {
                 player.vy -= jetpackPower;
-                inventory.fuel -= 0.3;
-                if (inventory.fuel <= 0) {
-                    inventory.fuel = 0;
+                fuelGauge -= 0.3;
+                if (fuelGauge <= 0) {
+                    fuelGauge = 0;
                     activeEffects.jetpack = false;
                 }
                 spawnParticles(player.x, player.y + player.height / 2, '#ff6600', 3);
@@ -580,7 +634,10 @@
             if (player.x > canvas.width) player.x = 0;
 
             altitude = Math.max(0, Math.floor((550 - player.y) * 2));
+            if (altitude > peakAltitude) peakAltitude = altitude;
             altitudeElement.textContent = altitude;
+
+            document.getElementById('fuelBar').style.width = (fuelGauge / fuelCapacity * 100) + '%';
 
             clouds.forEach(cloud => {
                 cloud.y += cloud.speed;
@@ -595,15 +652,24 @@
             });
             particles = particles.filter(p => p.life > 0);
 
+            flashMessages.forEach(f => {
+                f.y -= 1.5;
+                f.life -= 0.02;
+            });
+            flashMessages = flashMessages.filter(f => f.life > 0);
+
             if (player.y > 600) {
-                if (altitude > bestAltitude) {
-                    bestAltitude = altitude;
+                if (peakAltitude > bestAltitude) {
+                    bestAltitude = peakAltitude;
                     localStorage.setItem('reachBestAltitude', bestAltitude);
                     bestAltitudeElement.textContent = bestAltitude;
                 }
 
                 if (!activeEffects.shield) {
                     isGameOver = true;
+                    earnedThisRound = peakAltitude;
+                    money += earnedThisRound;
+                    moneyElement.textContent = money;
                     saveMoney();
                 } else {
                     player.y = 550;
@@ -658,7 +724,7 @@
                     case 'jetpack':
                         if (inventory.jetpack > 0) {
                             inventory.jetpack--;
-                            inventory.fuel = Math.min(fuelCapacity, inventory.fuel + 50);
+                            fuelGauge = Math.min(fuelCapacity, fuelGauge + 50);
                             updateInventoryUI();
                             playSound('powerup');
                         }
@@ -675,13 +741,16 @@
                         if (inventory.shield > 0) {
                             inventory.shield--;
                             activeEffects.shield = true;
+                            addFlash('🛡️ SHIELD ACTIVE!', player.x, player.y - 20, 1.5);
                             updateInventoryUI();
                             playSound('powerup');
                         }
                         break;
                     case 'fuel':
                         if (inventory.fuel > 0) {
-                            inventory.fuel = Math.min(fuelCapacity, inventory.fuel + 30);
+                            inventory.fuel--;
+                            fuelGauge = Math.min(fuelCapacity, fuelGauge + 30);
+                            addFlash('⛽ FUEL +30!', player.x, player.y - 20, 1.5);
                             updateInventoryUI();
                             playSound('powerup');
                         }
@@ -690,6 +759,7 @@
                         if (inventory.parachute > 0) {
                             inventory.parachute--;
                             activeEffects.parachute = true;
+                            addFlash('🪂 PARACHUTE!', player.x, player.y - 20, 1.5);
                             updateInventoryUI();
                             playSound('powerup');
                         }
@@ -698,30 +768,36 @@
             } else {
                 if (itemId === 'rocket' && inventory.rocket > 0) {
                     inventory.rocket--;
-                    player.vy -= 8;
+                    player.vy -= 12;
                     spawnParticles(player.x, player.y + player.height / 2, '#ff6600', 5);
+                    addFlash('🚀 ROCKET!', player.x, player.y - 20, 1);
                     updateInventoryUI();
                     playSound('boost');
                 }
                 if (itemId === 'jetpack' && !activeEffects.jetpack && inventory.jetpack > 0) {
                     activeEffects.jetpack = true;
+                    addFlash('🎒 JETPACK ON!', player.x, player.y - 20, 1.5);
                     playSound('powerup');
                 }
                 if (itemId === 'boost' && inventory.boost > 0) {
                     inventory.boost--;
-                    player.vy -= 12;
+                    player.vy -= 18;
                     spawnParticles(player.x, player.y + player.height / 2, '#ff00ff', 8);
+                    addFlash('💥 BOOST!', player.x, player.y - 20, 1);
                     updateInventoryUI();
                     playSound('boost');
                 }
                 if (itemId === 'shield' && !activeEffects.shield && inventory.shield > 0) {
                     inventory.shield--;
                     activeEffects.shield = true;
+                    addFlash('🛡️ SHIELD ON!', player.x, player.y - 20, 1.5);
                     updateInventoryUI();
                     playSound('powerup');
                 }
-                if (itemId === 'fuel' && inventory.fuel < fuelCapacity) {
-                    inventory.fuel = Math.min(fuelCapacity, inventory.fuel + 50);
+                if (itemId === 'fuel' && inventory.fuel > 0) {
+                    inventory.fuel--;
+                    fuelGauge = Math.min(fuelCapacity, fuelGauge + 50);
+                    addFlash('⛽ FUEL +50!', player.x, player.y - 20, 1.5);
                     updateInventoryUI();
                     playSound('powerup');
                 }
@@ -859,6 +935,10 @@
                         break;
                 }
             } catch (e) {}
+        }
+
+        function addFlash(text, x, y, duration) {
+            flashMessages.push({ text, x, y, life: duration });
         }
 
         document.addEventListener('keydown', (e) => {
