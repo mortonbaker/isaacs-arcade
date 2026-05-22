@@ -791,8 +791,12 @@
                             const upgrade = UPGRADES.find(u => u.id === btn.dataset.upgrade);
                             if (upgrade && upgrade.level < upgrade.maxLevel) {
                                 upgrade.level++;
-                                player.maxHealth = 100 + UPGRADES[0].level * 50;
-                                player.health = Math.min(player.health, player.maxHealth);
+                                if (upgrade.id === 'missiles') {
+                                    missileAmmo += 5;
+                                } else if (upgrade.id === 'armor') {
+                                    player.maxHealth = 100 + UPGRADES[0].level * 50;
+                                    player.health = Math.min(player.health, player.maxHealth);
+                                }
                             }
                         }
 
