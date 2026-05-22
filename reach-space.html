@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reach for the Stars</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #0a0a2a 0%, #1a1a4a 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 800px;
+            color: #fff;
+            font-size: 1rem;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+        }
+
+        .hud-item {
+            display: flex;
+            gap: 8px;
+        }
+
+        .altitude {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        #gameCanvas {
+            border: 3px solid #333;
+            border-radius: 8px;
+            background: linear-gradient(180deg, #87CEEB 0%, #1a1a4a 100%);
+        }
+
+        .controls {
+            color: #888;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        .powerup-bar {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+        }
+
+        .powerup-slot {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #555;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .powerup-slot.active {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.2);
+        }
+
+        .back-link {
+            color: #00ff88;
+            text-decoration: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Back to Arcade</a>
+
+    <div class="game-container">
+        <div class="hud">
+            <div class="hud-item">
+                <span>Altitude:</span>
+                <span class="altitude" id="altitude">0</span>
+                <span>m</span>
+            </div>
+            <div class="hud-item">
+                <span>Best:</span>
+                <span class="altitude" id="bestAltitude">0</span>
+                <span>m</span>
+            </div>
+            <div class="hud-item">
+                <span>Fuel:</span>
+                <span id="fuel">100</span>
+                <span>%</span>
+            </div>
+            <div class="hud-item">
+                <span>Boost:</span>
+                <span id="boostCharges">3</span>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+        <div class="powerup-bar">
+            <div class="powerup-slot" id="slot1"></div>
+            <div class="powerup-slot" id="slot2"></div>
+            <div class="powerup-slot" id="slot3"></div>
+            <div class="powerup-slot" id="slot4"></div>
+        </div>
+
+        <div class="controls">
+            <strong>SPACE</strong> to launch/boost | <strong>Q W E R</strong> to use powerups | <strong>R</strong> to restart
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const altitudeElement = document.getElementById('altitude');
+        const bestAltitudeElement = document.getElementById('bestAltitude');
+        const fuelElement = document.getElementById('fuel');
+        const boostChargesElement = document.getElementById('boostCharges');
+
+        const GRAVITY = 0.15;
+        const LAUNCH_POWER = 15;
+        const MAX_ALTITUDE = 10000;
+
+        let player = { x: 400, y: 550, vx: 0, vy: 0, width: 30, height: 40 };
+        let launched = false;
+        let altitude = 0;
+        let bestAltitude = parseInt(localStorage.getItem('reachBestAltitude')) || 0;
+        let fuel = 100;
+        let boostCharges = 3;
+        let powerups = [];
+        let clouds = [];
+        let stars = [];
+        let particles = [];
+        let gameLoop = null;
+        let isGameOver = false;
+        let launchPower = 0;
+        let charging = false;
+
+        let activePowerups = {
+            rocket: false,
+            shield: false,
+            wings: false,
+            jetpack: false
+        };
+
+        const POWERUP_TYPES = [
+            { id: 'rocket', name: '🚀 Rocket', color: '#ff4444', duration: 5000 },
+            { id: 'shield', name: '🛡️ Shield', color: '#4444ff', duration: 8000 },
+            { id: 'wings', name: '🦅 Wings', color: '#ffaa00', duration: 6000 },
+            { id: 'jetpack', name: '🎒 Jetpack', color: '#00ffaa', duration: 4000 },
+            { id: 'fuel', name: '⛽ Fuel', color: '#ffaa00', effect: 'fuel' },
+            { id: 'boost', name: '💥 Boost', color: '#ff00ff', effect: 'boost' },
+            { id: 'spring', name: '🔵 Spring', color: '#00ff88', effect: 'spring' },
+            { id: 'balloon', name: '🎈 Balloon', color: '#ff88ff', effect: 'balloon' }
+        ];
+
+        function init() {
+            player = { x: 400, y: 550, vx: 0, vy: 0, width: 30, height: 40 };
+            launched = false;
+            altitude = 0;
+            fuel = 100;
+            boostCharges = 3;
+            powerups = [];
+            particles = [];
+            isGameOver = false;
+            launchPower = 0;
+            charging = false;
+
+            activePowerups = {
+                rocket: false,
+                shield: false,
+                wings: false,
+                jetpack: false
+            };
+
+            bestAltitudeElement.textContent = bestAltitude;
+
+            createClouds();
+            createStars();
+            createPowerups();
+        }
+
+        function createClouds() {
+            clouds = [];
+            for (let i = 0; i < 15; i++) {
+                clouds.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    width: 50 + Math.random() * 100,
+                    height: 20 + Math.random() * 30,
+                    speed: 0.2 + Math.random() * 0.5
+                });
+            }
+        }
+
+        function createStars() {
+            stars = [];
+            for (let i = 0; i < 100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: 1 + Math.random() * 2,
+                    twinkle: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        function createPowerups() {
+            powerups = [];
+            for (let i = 0; i < 8; i++) {
+                spawnPowerup();
+            }
+        }
+
+        function spawnPowerup() {
+            const type = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+            powerups.push({
+                x: 100 + Math.random() * (canvas.width - 200),
+                y: 100 + Math.random() * (canvas.height - 300),
+                ...type,
+                active: false,
+                bobOffset: Math.random() * Math.PI * 2
+            });
+        }
+
+        function drawBackground() {
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+
+            if (altitude > 5000) {
+                gradient.addColorStop(0, '#000020');
+                gradient.addColorStop(0.5, '#0a0a3a');
+                gradient.addColorStop(1, '#1a1a5a');
+            } else if (altitude > 2000) {
+                gradient.addColorStop(0, '#000040');
+                gradient.addColorStop(0.5, '#0a0a5a');
+                gradient.addColorStop(1, '#2a2a7a');
+            } else if (altitude > 500) {
+                gradient.addColorStop(0, '#1a1a4a');
+                gradient.addColorStop(0.5, '#3a5a8a');
+                gradient.addColorStop(1, '#6a9aca');
+            } else {
+                gradient.addColorStop(0, '#87CEEB');
+                gradient.addColorStop(0.5, '#4a90a4');
+                gradient.addColorStop(1, '#2d5a3d');
+            }
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (altitude < 1000) {
+                ctx.fillStyle = '#2d5a3d';
+                ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+            }
+        }
+
+        function drawStars() {
+            if (altitude < 500) return;
+
+            const starAlpha = Math.min(1, (altitude - 500) / 1000);
+            stars.forEach(star => {
+                const twinkle = Math.sin(star.twinkle + Date.now() / 500) * 0.5 + 0.5;
+                ctx.fillStyle = `rgba(255, 255, 255, ${starAlpha * twinkle})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y % canvas.height, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawClouds() {
+            if (altitude > 2000) return;
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            clouds.forEach(cloud => {
+                const y = cloud.y % canvas.height;
+                ctx.beginPath();
+                ctx.ellipse(cloud.x, y, cloud.width / 2, cloud.height / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            if (activePowerups.rocket) {
+                ctx.fillStyle = '#ff6600';
+                ctx.beginPath();
+                ctx.moveTo(0, player.height / 2);
+                ctx.lineTo(-10, player.height / 2 + 20 + Math.random() * 10);
+                ctx.lineTo(10, player.height / 2 + 20 + Math.random() * 10);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            if (activePowerups.jetpack) {
+                ctx.fillStyle = '#ff4400';
+                ctx.beginPath();
+                ctx.moveTo(-player.width / 2 - 5, 0);
+                ctx.lineTo(-player.width / 2 - 15, 10 + Math.random() * 10);
+                ctx.lineTo(-player.width / 2 - 5, 15);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(player.width / 2 + 5, 0);
+                ctx.lineTo(player.width / 2 + 15, 10 + Math.random() * 10);
+                ctx.lineTo(player.width / 2 + 5, 15);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.fillStyle = '#ffcc00';
+            ctx.beginPath();
+            ctx.arc(0, 0, player.width / 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ff9900';
+            ctx.beginPath();
+            ctx.arc(0, 5, player.width / 4, Math.PI, 0);
+            ctx.fill();
+
+            if (activePowerups.shield) {
+                ctx.strokeStyle = 'rgba(100, 100, 255, 0.7)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, player.width, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            if (activePowerups.wings) {
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.moveTo(-player.width / 2, 0);
+                ctx.lineTo(-player.width - 20, -10);
+                ctx.lineTo(-player.width - 20, 10);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(player.width / 2, 0);
+                ctx.lineTo(player.width + 20, -10);
+                ctx.lineTo(player.width + 20, 10);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawPowerups() {
+            powerups.forEach(p => {
+                if (p.collected) return;
+
+                const bob = Math.sin(p.bobOffset + Date.now() / 300) * 5;
+                const size = 25;
+
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y + bob, size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(p.name.split(' ')[0], p.x, p.y + bob + 6);
+            });
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.fillStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${p.life})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawLaunchBar() {
+            if (!launched && charging) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(300, canvas.height - 80, 200, 30);
+
+                ctx.fillStyle = '#00ff88';
+                ctx.fillRect(300, canvas.height - 80, launchPower * 2, 30);
+
+                ctx.strokeStyle = '#fff';
+                ctx.strokeRect(300, canvas.height - 80, 200, 30);
+            }
+        }
+
+        function draw() {
+            drawBackground();
+            drawStars();
+            drawClouds();
+            drawPowerups();
+            drawParticles();
+            drawPlayer();
+            drawLaunchBar();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+
+            if (!launched && !charging) {
+                ctx.fillText('Hold SPACE to charge launch!', canvas.width / 2, canvas.height - 100);
+            }
+        }
+
+        function update() {
+            if (!launched) {
+                if (charging) {
+                    launchPower = Math.min(100, launchPower + 2);
+                }
+                return;
+            }
+
+            if (isGameOver) return;
+
+            let gravity = GRAVITY;
+
+            if (activePowerups.rocket) {
+                player.vy -= 0.5;
+                spawnParticles(player.x, player.y + player.height / 2, '#ff6600', -3);
+            }
+
+            if (activePowerups.jetpack) {
+                player.vy -= 0.3;
+                fuel -= 0.5;
+                spawnParticles(player.x - player.width / 2 - 10, player.y, '#ff4400', 2);
+                spawnParticles(player.x + player.width / 2 + 10, player.y, '#ff4400', 2);
+            }
+
+            if (activePowerups.wings) {
+                player.vx *= 0.98;
+                if (fuel > 0) {
+                    fuel -= 0.2;
+                }
+            }
+
+            player.vy += gravity;
+
+            if (activePowerups.wings && fuel > 0) {
+                player.vx += (Math.random() - 0.5) * 0.5;
+            }
+
+            fuel = Math.max(0, fuel - 0.1);
+
+            player.x += player.vx;
+            player.y += player.vy;
+
+            if (player.x < 0) player.x = canvas.width;
+            if (player.x > canvas.width) player.x = 0;
+
+            altitude = Math.max(0, Math.floor((550 - player.y) * 2));
+            altitudeElement.textContent = altitude;
+
+            clouds.forEach(cloud => {
+                cloud.y += cloud.speed;
+                if (cloud.y > canvas.height) cloud.y = 0;
+            });
+
+            powerups.forEach(p => {
+                if (p.collected) return;
+
+                const dist = Math.hypot(player.x - p.x, player.y - p.y);
+                if (dist < 40) {
+                    p.collected = true;
+                    activatePowerup(p);
+                    setTimeout(spawnPowerup, 3000);
+                }
+            });
+
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                p.size *= 0.98;
+            });
+            particles = particles.filter(p => p.life > 0);
+
+            if (altitude < 0 || (player.y > 600 && !activePowerups.balloon && !activePowerups.spring)) {
+                if (altitude < 0 && !activePowerups.balloon) {
+                    player.vy = 0;
+                    player.y = Math.min(player.y, 550);
+                }
+            }
+
+            if (player.y > 600) {
+                if (altitude > bestAltitude) {
+                    bestAltitude = altitude;
+                    localStorage.setItem('reachBestAltitude', bestAltitude);
+                    bestAltitudeElement.textContent = bestAltitude;
+                }
+            }
+
+            if (player.y > 650) {
+                isGameOver = true;
+            }
+
+            fuelElement.textContent = Math.floor(fuel);
+            boostChargesElement.textContent = boostCharges;
+        }
+
+        function spawnParticles(x, y, color, vy) {
+            for (let i = 0; i < 3; i++) {
+                const c = hexToRgb(color);
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 10,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: vy + Math.random() * 2,
+                    size: 3 + Math.random() * 3,
+                    r: c.r,
+                    g: c.g,
+                    b: c.b,
+                    life: 1
+                });
+            }
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 255, g: 255, b: 255 };
+        }
+
+        function activatePowerup(powerup) {
+            switch (powerup.id) {
+                case 'rocket':
+                    activePowerups.rocket = true;
+                    setTimeout(() => activePowerups.rocket = false, powerup.duration);
+                    break;
+                case 'shield':
+                    activePowerups.shield = true;
+                    setTimeout(() => activePowerups.shield = false, powerup.duration);
+                    break;
+                case 'wings':
+                    activePowerups.wings = true;
+                    setTimeout(() => activePowerups.wings = false, powerup.duration);
+                    break;
+                case 'jetpack':
+                    activePowerups.jetpack = true;
+                    setTimeout(() => activePowerups.jetpack = false, powerup.duration);
+                    break;
+                case 'fuel':
+                    fuel = Math.min(100, fuel + 50);
+                    break;
+                case 'boost':
+                    boostCharges = Math.min(5, boostCharges + 1);
+                    break;
+                case 'spring':
+                    player.vy = -20;
+                    spawnParticles(player.x, player.y + player.height / 2, '#00ff88', 5);
+                    break;
+                case 'balloon':
+                    player.vy = Math.min(player.vy, -5);
+                    spawnParticles(player.x, player.y - player.height / 2, '#ff88ff', -3);
+                    break;
+            }
+        }
+
+        function boost() {
+            if (boostCharges > 0 && launched) {
+                boostCharges--;
+                player.vy -= 8;
+                fuel = Math.min(100, fuel + 20);
+                spawnParticles(player.x, player.y + player.height / 2, '#ff00ff', 5);
+                playSound('boost');
+            }
+        }
+
+        function playSound(type) {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                switch(type) {
+                    case 'launch':
+                        oscillator.type = 'sawtooth';
+                        oscillator.frequency.setValueAtTime(100, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(400, now + 0.5);
+                        gainNode.gain.setValueAtTime(0.3, now);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.5);
+                        break;
+                    case 'boost':
+                        oscillator.type = 'square';
+                        oscillator.frequency.setValueAtTime(200, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+                        gainNode.gain.setValueAtTime(0.2, now);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.2);
+                        break;
+                    case 'powerup':
+                        oscillator.type = 'sine';
+                        oscillator.frequency.setValueAtTime(600, now);
+                        oscillator.frequency.setValueAtTime(900, now + 0.1);
+                        gainNode.gain.setValueAtTime(0.15, now);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.2);
+                        break;
+                }
+            } catch (e) {}
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!launched) {
+                    charging = true;
+                } else if (!isGameOver) {
+                    boost();
+                }
+            }
+            if (e.code === 'KeyR') {
+                init();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space' && charging && !launched) {
+                launched = true;
+                charging = false;
+                player.vy = -LAUNCH_POWER * (launchPower / 100) - 5;
+                launchPower = 0;
+                playSound('launch');
+            }
+        });
+
+        function gameLoopFn() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoopFn);
+        }
+
+        init();
+        gameLoopFn();
+    </script>
+</body>
+</html>
