@@ -875,16 +875,16 @@
                     openShop();
                 }
             }
-            if (e.code === 'KeyR') {
+            if (e.code === 'KeyR' && !launched) {
                 saveMoney();
                 init();
             }
             if (e.code === 'KeyQ') useItem('rocket');
             if (e.code === 'KeyW') useItem('jetpack');
             if (e.code === 'KeyE') useItem('boost');
-            if (e.code === 'KeyR') useItem('shield');
-            if (e.code === 'KeyT') useItem('fuel');
-            if (e.code === 'KeyY') useItem('parachute');
+            if (e.code === 'KeyT') useItem('shield');
+            if (e.code === 'KeyY') useItem('fuel');
+            if (e.code === 'KeyU') useItem('parachute');
         });
 
         document.addEventListener('keyup', (e) => {
