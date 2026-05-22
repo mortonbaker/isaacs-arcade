@@ -190,6 +190,10 @@
                 <span>Wave:</span>
                 <span id="wave">1</span>
             </div>
+            <div class="hud-item" style="color: #00ff88;">
+                <span>Weapon:</span>
+                <span id="weaponName">Machine Gun</span>
+            </div>
             <button id="shopBtn" style="padding: 5px 10px; background: #ffd700; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">SHOP</button>
         </div>
 
@@ -211,7 +215,7 @@
         </div>
 
         <div class="controls">
-            <strong>Mouse</strong> to move | <strong>Click/Space</strong> to shoot | <strong>S</strong> to open shop
+            <strong>Mouse</strong> to move | <strong>Click/Space</strong> to shoot | <strong>1-5</strong> to switch weapons | <strong>S</strong> for shop
         </div>
     </div>
 
@@ -222,6 +226,7 @@
         const scoreElement = document.getElementById('score');
         const moneyElement = document.getElementById('money');
         const waveElement = document.getElementById('wave');
+        const weaponNameElement = document.getElementById('weaponName');
         const shopOverlay = document.getElementById('shopOverlay');
         const shopItems = document.getElementById('shopItems');
         const gameOverlay = document.getElementById('gameOverlay');
@@ -391,6 +396,7 @@
             updateHUD();
             gameOverlay.style.display = 'none';
             shopOverlay.style.display = 'none';
+            weaponNameElement.textContent = WEAPONS[selectedWeapon].name;
         }
 
         function updateHUD() {
@@ -741,6 +747,7 @@
                             if (weapon) {
                                 weapon.owned = true;
                                 selectedWeapon = WEAPONS.findIndex(w => w.owned);
+                                weaponNameElement.textContent = WEAPONS[selectedWeapon].name;
                             }
                         } else if (btn.dataset.upgrade) {
                             const upgrade = UPGRADES.find(u => u.id === btn.dataset.upgrade);
@@ -780,11 +787,11 @@
                     openShop();
                 }
             }
-            if (e.key === '1' && WEAPONS[0].owned) selectedWeapon = 0;
-            if (e.key === '2' && WEAPONS[1].owned) selectedWeapon = 1;
-            if (e.key === '3' && WEAPONS[2].owned) selectedWeapon = 2;
-            if (e.key === '4' && WEAPONS[3].owned) selectedWeapon = 3;
-            if (e.key === '5' && WEAPONS[4].owned) selectedWeapon = 4;
+            if (e.key === '1' && WEAPONS[0].owned) { selectedWeapon = 0; weaponNameElement.textContent = WEAPONS[0].name; }
+            if (e.key === '2' && WEAPONS[1].owned) { selectedWeapon = 1; weaponNameElement.textContent = WEAPONS[1].name; }
+            if (e.key === '3' && WEAPONS[2].owned) { selectedWeapon = 2; weaponNameElement.textContent = WEAPONS[2].name; }
+            if (e.key === '4' && WEAPONS[3].owned) { selectedWeapon = 3; weaponNameElement.textContent = WEAPONS[3].name; }
+            if (e.key === '5' && WEAPONS[4].owned) { selectedWeapon = 4; weaponNameElement.textContent = WEAPONS[4].name; }
         });
 
         document.getElementById('shopBtn').addEventListener('click', openShop);
