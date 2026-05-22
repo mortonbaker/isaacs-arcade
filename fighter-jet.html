@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fighter Jet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #87CEEB 0%, #1a1a3a 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 800px;
+            color: #fff;
+            font-size: 1rem;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+        }
+
+        .hud-item {
+            display: flex;
+            gap: 8px;
+        }
+
+        .money {
+            color: #ffd700;
+            font-weight: bold;
+        }
+
+        .health-bar {
+            width: 100px;
+            height: 12px;
+            background: #333;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ff6666);
+            transition: width 0.2s;
+        }
+
+        #gameCanvas {
+            border: 3px solid #333;
+            border-radius: 8px;
+            background: linear-gradient(180deg, #87CEEB 0%, #4a90a4 50%, #2d5a3d 85%, #1a3a1a 100%);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls {
+            color: #888;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        .shop-overlay, .game-over-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 16px;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .shop-overlay h2, .game-over-overlay h2 {
+            color: #ffd700;
+            text-align: center;
+        }
+
+        .shop-items {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #fff;
+        }
+
+        .shop-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .shop-item.owned {
+            background: rgba(78, 204, 163, 0.3);
+            border: 1px solid #4ecca3;
+        }
+
+        .buy-btn {
+            padding: 6px 12px;
+            background: #ffd700;
+            border: none;
+            border-radius: 4px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .buy-btn:disabled {
+            background: #666;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .close-btn {
+            padding: 10px 20px;
+            background: #4ecca3;
+            border: none;
+            border-radius: 6px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .game-over-text {
+            color: #ff4444;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .stats {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .back-link {
+            color: #4ecca3;
+            text-decoration: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Back to Arcade</a>
+
+    <div class="game-container">
+        <div class="hud">
+            <div class="hud-item">
+                <span>Health:</span>
+                <div class="health-bar">
+                    <div class="health-fill" id="healthFill" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="hud-item">
+                <span>Score:</span>
+                <span id="score">0</span>
+            </div>
+            <div class="hud-item money">
+                <span>$</span><span id="money">0</span>
+            </div>
+            <div class="hud-item">
+                <span>Wave:</span>
+                <span id="wave">1</span>
+            </div>
+            <button id="shopBtn" style="padding: 5px 10px; background: #ffd700; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">SHOP</button>
+        </div>
+
+        <div class="canvas-wrapper" style="position: relative;">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+            <div class="shop-overlay" id="shopOverlay">
+                <h2>⚔️ ARMORY ⚔️</h2>
+                <div class="shop-items" id="shopItems"></div>
+                <button class="close-btn" id="closeShopBtn">Close</button>
+            </div>
+
+            <div class="game-over-overlay" id="gameOverlay">
+                <div class="game-over-text">GAME OVER</div>
+                <div class="stats">Final Score: <span id="finalScore">0</span></div>
+                <div class="stats">Total Earnings: <span id="finalMoney">0</span></div>
+                <button class="close-btn" id="restartBtn">Play Again</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <strong>Mouse</strong> to move | <strong>Click/Space</strong> to shoot | <strong>S</strong> to open shop
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const healthFill = document.getElementById('healthFill');
+        const scoreElement = document.getElementById('score');
+        const moneyElement = document.getElementById('money');
+        const waveElement = document.getElementById('wave');
+        const shopOverlay = document.getElementById('shopOverlay');
+        const shopItems = document.getElementById('shopItems');
+        const gameOverlay = document.getElementById('gameOverlay');
+        const finalScoreElement = document.getElementById('finalScore');
+        const finalMoneyElement = document.getElementById('finalMoney');
+
+        const WEAPONS = [
+            { id: 'machinegun', name: 'Machine Gun', damage: 5, fireRate: 100, price: 0, owned: true },
+            { id: 'cannon', name: '20mm Cannon', damage: 20, fireRate: 300, price: 500, owned: false },
+            { id: 'rockets', name: 'Rocket Pod', damage: 50, fireRate: 500, price: 1500, owned: false },
+            { id: 'missiles', name: 'Heat Seekers', damage: 100, fireRate: 800, price: 3000, owned: false },
+            { id: 'laser', name: 'Laser Beam', damage: 200, fireRate: 1000, price: 5000, owned: false }
+        ];
+
+        const UPGRADES = [
+            { id: 'armor', name: 'Armor Plating', desc: '+50 max health', price: 800, maxLevel: 3, level: 0 },
+            { id: 'speed', name: 'Afterburner', desc: '+20% speed', price: 600, maxLevel: 3, level: 0 },
+            { id: 'rapid', name: 'Rapid Fire', desc: '-20% fire rate', price: 1000, maxLevel: 3, level: 0 }
+        ];
+
+        const ENEMIES = [
+            { type: 'plane', health: 20, speed: 3, points: 50, money: 10, color: '#ff4444', width: 30, height: 20 },
+            { type: 'helicopter', health: 40, speed: 2, points: 100, money: 25, color: '#ff8800', width: 35, height: 25 },
+            { type: 'tank', health: 60, speed: 1, points: 150, money: 40, color: '#888888', width: 30, height: 20 },
+            { type: 'ship', health: 100, speed: 0.5, points: 250, money: 75, color: '#4444ff', width: 50, height: 30 }
+        ];
+
+        let player = { x: 400, y: 550, width: 40, height: 50, health: 100, maxHealth: 100 };
+        let bullets = [];
+        let enemies = [];
+        let explosions = [];
+        let enemyBullets = [];
+        let score = 0;
+        let money = 0;
+        let totalMoney = 0;
+        let wave = 1;
+        let gameOver = false;
+        let isPaused = false;
+        let selectedWeapon = 0;
+        let lastShot = 0;
+        let gameLoop = null;
+        let mouseX = 400;
+        let useMouseControl = true;
+        let enemySpawnTimer = 0;
+        let waveEnemiesKilled = 0;
+
+        function init() {
+            player = { x: 400, y: 550, width: 40, height: 50, health: 100, maxHealth: 100 };
+            bullets = [];
+            enemies = [];
+            explosions = [];
+            enemyBullets = [];
+            score = 0;
+            money = 0;
+            totalMoney = 0;
+            wave = 1;
+            gameOver = false;
+            isPaused = false;
+            selectedWeapon = 0;
+            lastShot = 0;
+            enemySpawnTimer = 0;
+            waveEnemiesKilled = 0;
+
+            WEAPONS.forEach(w => w.owned = w.price === 0);
+            UPGRADES.forEach(u => u.level = 0);
+
+            player.maxHealth = 100 + UPGRADES[0].level * 50;
+            player.health = player.maxHealth;
+
+            updateHUD();
+            gameOverlay.style.display = 'none';
+            shopOverlay.style.display = 'none';
+        }
+
+        function updateHUD() {
+            healthFill.style.width = `${(player.health / player.maxHealth) * 100}%`;
+            scoreElement.textContent = score;
+            moneyElement.textContent = money;
+            waveElement.textContent = wave;
+        }
+
+        function shoot() {
+            const now = Date.now();
+            const weapon = WEAPONS[selectedWeapon];
+            const fireRateMultiplier = Math.pow(0.8, UPGRADES[2].level);
+
+            if (now - lastShot < weapon.fireRate * fireRateMultiplier) return;
+            lastShot = now;
+
+            switch (weapon.id) {
+                case 'machinegun':
+                    bullets.push({ x: player.x, y: player.y - player.height / 2, damage: weapon.damage, speed: 15, type: 'normal' });
+                    break;
+                case 'cannon':
+                    bullets.push({ x: player.x, y: player.y - player.height / 2, damage: weapon.damage, speed: 12, type: 'cannon', size: 6 });
+                    break;
+                case 'rockets':
+                    bullets.push({ x: player.x - 15, y: player.y, damage: weapon.damage, speed: 8, type: 'rocket' });
+                    bullets.push({ x: player.x + 15, y: player.y, damage: weapon.damage, speed: 8, type: 'rocket' });
+                    break;
+                case 'missiles':
+                    const target = findClosestEnemy();
+                    bullets.push({ x: player.x, y: player.y - player.height / 2, damage: weapon.damage, speed: 10, type: 'missile', target: target });
+                    break;
+                case 'laser':
+                    bullets.push({ x: player.x, y: player.y - player.height / 2, damage: weapon.damage, speed: 25, type: 'laser' });
+                    break;
+            }
+        }
+
+        function findClosestEnemy() {
+            let closest = null;
+            let minDist = Infinity;
+            enemies.forEach(e => {
+                if (!e.alive) return;
+                const dist = Math.hypot(e.x - player.x, e.y - player.y);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = e;
+                }
+            });
+            return closest;
+        }
+
+        function spawnEnemy() {
+            const typeIndex = Math.min(Math.floor(wave / 3), ENEMIES.length - 1);
+            const type = ENEMIES[typeIndex];
+
+            const enemy = {
+                x: Math.random() * (canvas.width - 100) + 50,
+                y: -50,
+                ...JSON.parse(JSON.stringify(type)),
+                alive: true,
+                shootTimer: Math.random() * 2000
+            };
+
+            enemies.push(enemy);
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            ctx.fillStyle = '#4a90a4';
+            ctx.beginPath();
+            ctx.moveTo(0, -player.height / 2);
+            ctx.lineTo(player.width / 2, player.height / 2);
+            ctx.lineTo(player.width / 4, player.height / 4);
+            ctx.lineTo(-player.width / 4, player.height / 4);
+            ctx.lineTo(-player.width / 2, player.height / 2);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#2d5a6a';
+            ctx.fillRect(-3, -player.height / 4, 6, player.height / 2);
+
+            ctx.fillStyle = '#ffd700';
+            ctx.fillRect(-player.width / 2 + 5, player.height / 4, 8, 4);
+            ctx.fillRect(player.width / 2 - 13, player.height / 4, 8, 4);
+
+            ctx.restore();
+        }
+
+        function drawEnemy(enemy) {
+            ctx.save();
+            ctx.translate(enemy.x, enemy.y);
+
+            ctx.fillStyle = enemy.color;
+
+            if (enemy.type === 'plane') {
+                ctx.beginPath();
+                ctx.moveTo(0, enemy.height / 2);
+                ctx.lineTo(enemy.width / 2, -enemy.height / 2);
+                ctx.lineTo(-enemy.width / 2, -enemy.height / 2);
+                ctx.closePath();
+                ctx.fill();
+            } else if (enemy.type === 'helicopter') {
+                ctx.fillRect(-enemy.width / 2, -5, enemy.width, 10);
+                ctx.fillRect(-5, -enemy.height / 2, 10, enemy.height);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(-enemy.width / 2 - 15, -3, 30, 6);
+            } else if (enemy.type === 'tank') {
+                ctx.fillRect(-enemy.width / 2, 0, enemy.width, enemy.height / 2);
+                ctx.fillStyle = '#666';
+                ctx.fillRect(-3, -enemy.height / 2, 6, enemy.height / 2);
+            } else if (enemy.type === 'ship') {
+                ctx.beginPath();
+                ctx.moveTo(0, -enemy.height / 2);
+                ctx.lineTo(enemy.width / 2, enemy.height / 2);
+                ctx.lineTo(-enemy.width / 2, enemy.height / 2);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawBullet(bullet) {
+            ctx.fillStyle = '#ffff00';
+
+            if (bullet.type === 'cannon') {
+                ctx.fillStyle = '#ff8800';
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.size, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (bullet.type === 'rocket') {
+                ctx.fillStyle = '#ff4444';
+                ctx.fillRect(bullet.x - 3, bullet.y - 6, 6, 12);
+                ctx.fillStyle = '#ff8800';
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y + 8, 4, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (bullet.type === 'missile') {
+                ctx.fillStyle = '#00ffff';
+                ctx.fillRect(bullet.x - 4, bullet.y - 10, 8, 20);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(bullet.x - 2, bullet.y - 8, 4, 10);
+            } else if (bullet.type === 'laser') {
+                ctx.fillStyle = '#ff00ff';
+                ctx.fillRect(bullet.x - 4, bullet.y - 15, 8, 30);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(bullet.x - 2, bullet.y - 12, 4, 24);
+            } else {
+                ctx.fillRect(bullet.x - 2, bullet.y - 6, 4, 12);
+            }
+        }
+
+        function drawExplosion(exp) {
+            const alpha = 1 - exp.frame / 30;
+            const colors = ['#ff4400', '#ff8800', '#ffcc00'];
+
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2 + exp.frame * 0.1;
+                const dist = exp.frame * 2;
+                const color = colors[Math.floor(exp.frame / 10) % 3];
+
+                ctx.fillStyle = color;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(
+                    exp.x + Math.cos(angle) * dist,
+                    exp.y + Math.sin(angle) * dist,
+                    Math.max(0, 8 - exp.frame * 0.3),
+                    0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function drawBackground() {
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#4a90a4';
+            ctx.fillRect(0, canvas.height * 0.5, canvas.width, canvas.height * 0.35);
+
+            ctx.fillStyle = '#2d5a3d';
+            ctx.fillRect(0, canvas.height * 0.85, canvas.width, canvas.height * 0.15);
+        }
+
+        function draw() {
+            drawBackground();
+
+            bullets.forEach(drawBullet);
+            enemies.forEach(e => { if (e.alive) drawEnemy(e); });
+            explosions.forEach(drawExplosion);
+
+            drawPlayer();
+        }
+
+        function update() {
+            if (gameOver || isPaused) return;
+
+            const speedMultiplier = Math.pow(1.2, UPGRADES[1].level);
+            const dx = mouseX - player.x;
+            if (Math.abs(dx) > 2) {
+                player.x += Math.sign(dx) * 6 * speedMultiplier;
+            }
+            player.x = Math.max(player.width / 2, Math.min(canvas.width - player.width / 2, player.x));
+
+            bullets.forEach(bullet => {
+                if (bullet.target && bullet.target.alive) {
+                    const angle = Math.atan2(bullet.target.y - bullet.y, bullet.target.x - bullet.x);
+                    bullet.x += Math.cos(angle) * 8;
+                    bullet.y += Math.sin(angle) * 8;
+                } else {
+                    bullet.y -= bullet.speed;
+                }
+            });
+            bullets = bullets.filter(b => b.y > -50 && b.y < canvas.height + 50);
+
+            enemies.forEach(enemy => {
+                if (!enemy.alive) return;
+
+                enemy.y += enemy.speed;
+                enemy.shootTimer -= 16;
+
+                if (enemy.y > canvas.height + 50) {
+                    enemy.alive = false;
+                }
+
+                if (enemy.shootTimer <= 0 && enemy.y > 0 && enemy.y < canvas.height) {
+                    enemy.shootTimer = 2000 + Math.random() * 2000;
+                }
+            });
+
+            bullets.forEach(bullet => {
+                enemies.forEach(enemy => {
+                    if (!enemy.alive) return;
+
+                    const hit = Math.abs(bullet.x - enemy.x) < enemy.width / 2 + 10 &&
+                                Math.abs(bullet.y - enemy.y) < enemy.height / 2 + 10;
+
+                    if (hit) {
+                        enemy.health -= bullet.damage;
+                        bullet.y = -100;
+
+                        if (enemy.health <= 0) {
+                            enemy.alive = false;
+                            score += enemy.points;
+                            money += enemy.money;
+                            totalMoney += enemy.money;
+                            waveEnemiesKilled++;
+                            explosions.push({ x: enemy.x, y: enemy.y, frame: 0 });
+
+                            if (waveEnemiesKilled >= wave * 5) {
+                                wave++;
+                                waveEnemiesKilled = 0;
+                            }
+                        }
+                    }
+                });
+            });
+
+            explosions.forEach(exp => exp.frame++);
+            explosions = explosions.filter(e => e.frame < 30);
+
+            enemySpawnTimer -= 16;
+            if (enemySpawnTimer <= 0) {
+                spawnEnemy();
+                enemySpawnTimer = Math.max(500, 2000 - wave * 100);
+            }
+
+            enemies = enemies.filter(e => e.alive || e.y < canvas.height + 100);
+
+            updateHUD();
+        }
+
+        function gameOverFn() {
+            gameOver = true;
+            finalScoreElement.textContent = score;
+            finalMoneyElement.textContent = totalMoney;
+            gameOverlay.style.display = 'flex';
+        }
+
+        function openShop() {
+            isPaused = true;
+            renderShop();
+            shopOverlay.style.display = 'flex';
+        }
+
+        function closeShop() {
+            isPaused = false;
+            shopOverlay.style.display = 'none';
+        }
+
+        function renderShop() {
+            shopItems.innerHTML = '';
+
+            WEAPONS.forEach(weapon => {
+                if (weapon.price === 0) return;
+
+                const item = document.createElement('div');
+                item.className = 'shop-item' + (weapon.owned ? ' owned' : '');
+                item.innerHTML = `
+                    <div>
+                        <strong>${weapon.name}</strong>
+                        <div style="color: #888; font-size: 0.85rem;">DMG: ${weapon.damage} | Rate: ${weapon.fireRate}ms</div>
+                    </div>
+                    ${weapon.owned ? '<span style="color: #4ecca3;">OWNED</span>' :
+                        `<button class="buy-btn" data-id="${weapon.id}" data-price="${weapon.price}">$${weapon.price}</button>`}
+                `;
+                shopItems.appendChild(item);
+            });
+
+            UPGRADES.forEach(upgrade => {
+                const item = document.createElement('div');
+                item.className = 'shop-item';
+                item.innerHTML = `
+                    <div>
+                        <strong>${upgrade.name} (Lv ${upgrade.level}/${upgrade.maxLevel})</strong>
+                        <div style="color: #888; font-size: 0.85rem;">${upgrade.desc}</div>
+                    </div>
+                    ${upgrade.level >= upgrade.maxLevel ? '<span style="color: #4ecca3;">MAX</span>' :
+                        `<button class="buy-btn" data-upgrade="${upgrade.id}" data-price="${upgrade.price}">$${upgrade.price}</button>`}
+                `;
+                shopItems.appendChild(item);
+            });
+
+            shopItems.querySelectorAll('.buy-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const price = parseInt(btn.dataset.price);
+
+                    if (money >= price) {
+                        money -= price;
+
+                        if (btn.dataset.id) {
+                            const weapon = WEAPONS.find(w => w.id === btn.dataset.id);
+                            if (weapon) {
+                                weapon.owned = true;
+                                selectedWeapon = WEAPONS.findIndex(w => w.owned);
+                            }
+                        } else if (btn.dataset.upgrade) {
+                            const upgrade = UPGRADES.find(u => u.id === btn.dataset.upgrade);
+                            if (upgrade && upgrade.level < upgrade.maxLevel) {
+                                upgrade.level++;
+                                player.maxHealth = 100 + UPGRADES[0].level * 50;
+                                player.health = Math.min(player.health, player.maxHealth);
+                            }
+                        }
+
+                        updateHUD();
+                        renderShop();
+                    }
+                });
+            });
+        }
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            useMouseControl = true;
+        });
+
+        canvas.addEventListener('click', () => {
+            if (!isPaused && !gameOver) shoot();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' && !isPaused && !gameOver) {
+                shoot();
+                e.preventDefault();
+            }
+            if (e.key === 's' || e.key === 'S') {
+                if (shopOverlay.style.display === 'flex') {
+                    closeShop();
+                } else {
+                    openShop();
+                }
+            }
+            if (e.key === '1' && WEAPONS[0].owned) selectedWeapon = 0;
+            if (e.key === '2' && WEAPONS[1].owned) selectedWeapon = 1;
+            if (e.key === '3' && WEAPONS[2].owned) selectedWeapon = 2;
+            if (e.key === '4' && WEAPONS[3].owned) selectedWeapon = 3;
+            if (e.key === '5' && WEAPONS[4].owned) selectedWeapon = 4;
+        });
+
+        document.getElementById('shopBtn').addEventListener('click', openShop);
+        document.getElementById('closeShopBtn').addEventListener('click', closeShop);
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            init();
+            gameLoop = setInterval(() => {
+                update();
+                draw();
+            }, 16);
+        });
+
+        init();
+        gameLoop = setInterval(() => {
+            update();
+            draw();
+        }, 16);
+    </script>
+</body>
+</html>
