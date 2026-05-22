@@ -411,9 +411,8 @@
 
         function drawEnemy(enemy) {
             const type = ENEMY_TYPES[enemy.type];
-            const color = enemy.health > 1 ? '#ff6688' : type.color;
 
-            ctx.fillStyle = color;
+            ctx.fillStyle = type.color;
             ctx.beginPath();
             ctx.moveTo(enemy.x, enemy.y - enemy.height / 2);
             ctx.lineTo(enemy.x + enemy.width / 2, enemy.y - enemy.height / 4);
@@ -436,17 +435,10 @@
             ctx.arc(enemy.x - 5, enemy.y - 2, 1.2, 0, Math.PI * 2);
             ctx.arc(enemy.x + 5, enemy.y - 2, 1.2, 0, Math.PI * 2);
             ctx.fill();
-
-            if (enemy.health > 1) {
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(enemy.x - 8, enemy.y + enemy.height / 2 + 2, 16 * (enemy.health / (ENEMY_TYPES[enemy.type].health + Math.floor(wave / 5))), 3);
-            }
         }
 
         function drawBoss() {
             if (!boss || !boss.alive) return;
-
-            const healthPercent = bossHealth / (BOSS_DATA.health + Math.floor(wave / 3) * 3);
 
             ctx.fillStyle = BOSS_DATA.color;
             ctx.beginPath();
@@ -471,11 +463,6 @@
             ctx.arc(boss.x - 15, boss.y - 5, 3, 0, Math.PI * 2);
             ctx.arc(boss.x + 15, boss.y - 5, 3, 0, Math.PI * 2);
             ctx.fill();
-
-            ctx.fillStyle = '#330011';
-            ctx.fillRect(boss.x - boss.width / 2 - 10, boss.y + boss.height / 2 + 5, (boss.width + 20) * healthPercent, 8);
-            ctx.strokeStyle = '#ff4466';
-            ctx.strokeRect(boss.x - boss.width / 2 - 10, boss.y + boss.height / 2 + 5, boss.width + 20, 8);
         }
 
         function drawBullet(bullet) {
