@@ -194,6 +194,10 @@
                 <span>Weapon:</span>
                 <span id="weaponName">Machine Gun</span>
             </div>
+            <div class="hud-item" style="color: #ff4444;">
+                <span>Missiles:</span>
+                <span id="missileAmmo">0</span>
+            </div>
             <button id="shopBtn" style="padding: 5px 10px; background: #ffd700; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">SHOP</button>
         </div>
 
@@ -215,7 +219,7 @@
         </div>
 
         <div class="controls">
-            <strong>Mouse</strong> to move | <strong>Click/Space</strong> to shoot | <strong>1-5</strong> to switch weapons | <strong>S</strong> for shop
+            <strong>Mouse</strong> to move | <strong>Click/Space</strong> to shoot | <strong>F</strong> to fire missile | <strong>1-5</strong> to switch weapons | <strong>S</strong> for shop
         </div>
     </div>
 
@@ -227,6 +231,7 @@
         const moneyElement = document.getElementById('money');
         const waveElement = document.getElementById('wave');
         const weaponNameElement = document.getElementById('weaponName');
+        const missileAmmoElement = document.getElementById('missileAmmo');
         const shopOverlay = document.getElementById('shopOverlay');
         const shopItems = document.getElementById('shopItems');
         const gameOverlay = document.getElementById('gameOverlay');
@@ -241,10 +246,15 @@
             { id: 'laser', name: 'Laser Beam', damage: 200, fireRate: 1000, price: 5000, owned: false }
         ];
 
+        let missileAmmo = 0;
+        let lastMissileShot = 0;
+        const MISSILE_COOLDOWN = 500;
+
         const UPGRADES = [
             { id: 'armor', name: 'Armor Plating', desc: '+50 max health', price: 800, maxLevel: 3, level: 0 },
             { id: 'speed', name: 'Afterburner', desc: '+20% speed', price: 600, maxLevel: 3, level: 0 },
-            { id: 'rapid', name: 'Rapid Fire', desc: '-20% fire rate', price: 1000, maxLevel: 3, level: 0 }
+            { id: 'rapid', name: 'Rapid Fire', desc: '-20% fire rate', price: 1000, maxLevel: 3, level: 0 },
+            { id: 'missiles', name: 'Missile Restock', desc: '+5 homing missiles', price: 200, maxLevel: 10, level: 0 }
         ];
 
         const ENEMIES = [
@@ -384,6 +394,8 @@
             isPaused = false;
             selectedWeapon = 0;
             lastShot = 0;
+            lastMissileShot = 0;
+            missileAmmo = 5;
             enemySpawnTimer = 0;
             waveEnemiesKilled = 0;
 
@@ -404,6 +416,7 @@
             scoreElement.textContent = score;
             moneyElement.textContent = money;
             waveElement.textContent = wave;
+            missileAmmoElement.textContent = missileAmmo;
         }
 
         function shoot() {
@@ -440,6 +453,31 @@
                     bullets.push({ x: player.x, y: player.y - player.height / 2, damage: weapon.damage, speed: 25, type: 'laser' });
                     break;
             }
+        }
+
+        function fireMissile() {
+            const now = Date.now();
+            if (now - lastMissileShot < MISSILE_COOLDOWN) return;
+            if (missileAmmo <= 0) return;
+
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            lastMissileShot = now;
+            missileAmmo--;
+
+            playSound('rocket');
+
+            const target = findClosestEnemy();
+            bullets.push({
+                x: player.x,
+                y: player.y - player.height / 2,
+                damage: 150,
+                speed: 8,
+                type: 'missile',
+                target: target
+            });
+
+            updateHUD();
         }
 
         function findClosestEnemy() {
@@ -792,6 +830,7 @@
             if (e.key === '3' && WEAPONS[2].owned) { selectedWeapon = 2; weaponNameElement.textContent = WEAPONS[2].name; }
             if (e.key === '4' && WEAPONS[3].owned) { selectedWeapon = 3; weaponNameElement.textContent = WEAPONS[3].name; }
             if (e.key === '5' && WEAPONS[4].owned) { selectedWeapon = 4; weaponNameElement.textContent = WEAPONS[4].name; }
+            if (e.key === 'f' || e.key === 'F') fireMissile();
         });
 
         document.getElementById('shopBtn').addEventListener('click', openShop);
